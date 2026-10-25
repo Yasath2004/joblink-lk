@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "JobLink LK",
+    "slug": "joblink-lk",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0B3B37"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "lk.joblink.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "JobLink LK needs access to your photos so you can add a profile picture."
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "JobLink LK needs access to your photos so you can add a profile picture."
+        }
+      ]
+    ],
+    "android": {
+      "package": "lk.joblink.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B3B37"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
