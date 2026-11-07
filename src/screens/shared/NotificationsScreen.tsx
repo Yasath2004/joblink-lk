@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { FlatList, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "../../components/SafeScreen";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, spacing } from "../../theme/theme";
 import { fetchNotifications, markAllNotificationsRead, NotificationItem } from "../../data/socialApi";

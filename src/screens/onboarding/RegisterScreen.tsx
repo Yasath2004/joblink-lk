@@ -14,24 +14,20 @@ import { LinearGradient } from "expo-linear-gradient";
 import { colors, radius, spacing } from "../../theme/theme";
 import Input from "../../components/Input";
 import Button from "../../components/Button";
-import { register, Role } from "../../lib/auth";
+import { isLkMobile, Role, sendOtp } from "../../lib/auth";
 
 export default function RegisterScreen({ navigation, route }: any) {
   const role: Role = route?.params?.role === "employer" ? "employer" : "worker";
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!name.trim()) e.name = "Name is required";
-    if (!/^0\d{9}$/.test(phone.replace(/\s/g, ""))) e.phone = "Enter a valid phone number (07X XXX XXXX)";
-    if (password.length < 6) e.password = "Password must be at least 6 characters";
-    if (confirm !== password) e.confirm = "Passwords do not match";
+    if (!name.trim()) e.name = role === "employer" ? "Name or business name is required" : "Name is required";
+    if (!isLkMobile(phone)) e.phone = "Enter a valid mobile number (07X XXX XXXX)";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -39,13 +35,13 @@ export default function RegisterScreen({ navigation, route }: any) {
   const submit = async () => {
     if (!validate()) return;
     setLoading(true);
-    const res = await register({ name, phone, password, role });
+    const res = await sendOtp(phone, "register");
     setLoading(false);
     if (res.error) {
       setErrors({ phone: res.error });
       return;
     }
-    navigation.replace(role === "worker" ? "ProfileSetup" : "EmployerTabs");
+    navigation.navigate("Otp", { phone, mode: "register", role, name: name.trim() });
   };
 
   const err = (k: string) => (errors[k] ? <Text style={styles.errorText}>{errors[k]}</Text> : null);
@@ -62,50 +58,36 @@ export default function RegisterScreen({ navigation, route }: any) {
           <Text style={styles.title}>Create your account</Text>
           <View style={styles.roleBadge}>
             <Ionicons name={role === "worker" ? "construct" : "business"} size={13} color={colors.bgDark} />
-            <Text style={styles.roleText}>
-              {role === "worker" ? "I'm looking for work" : "I'm hiring"}
-            </Text>
+            <Text style={styles.roleText}>{role === "worker" ? "I'm looking for work" : "I'm hiring"}</Text>
           </View>
 
           <View style={styles.card}>
             <Input
-              label="Full Name"
+              label={role === "employer" ? "Your name or business name" : "Full Name"}
               icon="person-outline"
               placeholder="Your name"
               value={name}
-              onChangeText={setName}
+              onChangeText={(v) => {
+                setName(v);
+                if (errors.name) setErrors((e) => ({ ...e, name: "" }));
+              }}
             />
             {err("name")}
             <Input
-              label="Phone Number"
+              label="Mobile Number"
               icon="call-outline"
               placeholder="07X XXX XXXX"
               keyboardType="phone-pad"
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={(v) => {
+                setPhone(v);
+                if (errors.phone) setErrors((e) => ({ ...e, phone: "" }));
+              }}
+              maxLength={12}
+              hint="We'll send a 6-digit code to this number to confirm it's yours."
             />
             {err("phone")}
-            <Input
-              label="Password"
-              icon="lock-closed-outline"
-              placeholder="At least 6 characters"
-              secure
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-            />
-            {err("password")}
-            <Input
-              label="Confirm Password"
-              icon="lock-closed-outline"
-              placeholder="Re-enter password"
-              secure
-              value={confirm}
-              onChangeText={setConfirm}
-              autoCapitalize="none"
-            />
-            {err("confirm")}
-            <Button label="Create Account" icon="arrow-forward" loading={loading} onPress={submit} />
+            <Button label="Send OTP" icon="arrow-forward" loading={loading} onPress={submit} />
           </View>
 
           <View style={styles.loginRow}>

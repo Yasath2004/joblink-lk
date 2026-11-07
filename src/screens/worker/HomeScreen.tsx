@@ -5,7 +5,6 @@ import {
   FlatList,
   ImageBackground,
   RefreshControl,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { SafeAreaView } from "../../components/SafeScreen";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, radius, shadow, spacing } from "../../theme/theme";
@@ -21,6 +21,8 @@ import { categories, categoryColor, categoryIcon, Job } from "../../data/mockDat
 import { AppStatus, fetchJobs, fetchMarketStats, fetchMyApplicationStatuses, MarketStats } from "../../data/jobsApi";
 import { fetchMyProfile } from "../../data/profileApi";
 import { unreadNotificationCount } from "../../data/socialApi";
+import { fetchProgress, Progress } from "../../data/verifyApi";
+import ProfileProgressCard from "../../components/ProfileProgressCard";
 import Chip from "../../components/Chip";
 import JobCard from "../../components/JobCard";
 import { useLanguage } from "../../i18n/LanguageContext";
@@ -43,17 +45,20 @@ export default function HomeScreen({ navigation }: any) {
   const [statuses, setStatuses] = useState<Record<string, AppStatus>>({});
   const [dbStats, setDbStats] = useState<MarketStats | null>(null);
   const [unread, setUnread] = useState(0);
+  const [progress, setProgress] = useState<Progress | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [j, st, stats, p, n] = await Promise.all([
+    const [j, st, stats, p, n, prog] = await Promise.all([
       fetchJobs(),
       fetchMyApplicationStatuses(),
       fetchMarketStats(),
       fetchMyProfile(),
       unreadNotificationCount(),
+      fetchProgress(),
     ]);
+    setProgress(prog);
     setJobs(j);
     setStatuses(st);
     setDbStats(stats);
@@ -190,6 +195,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const header = (
     <View>
+      <ProfileProgressCard progress={progress} onPress={() => navigation.navigate("VerificationHub")} />
       <FlatList
         data={["All", ...categories]}
         keyExtractor={(i) => i}
@@ -300,7 +306,7 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.empty}>
               <ActivityIndicator color={colors.primary} />
             </View>
-          ) : urgentList.length > 0 ? null : (
+          ) : urgentList.length > 0 ? undefined : (
             <View style={styles.empty}>
               <Ionicons name={searching ? "search-outline" : "briefcase-outline"} size={32} color={colors.textMuted} />
               <Text style={styles.emptyText}>{searching ? t("no_jobs_found") : "No open jobs yet. Pull down to refresh."}</Text>

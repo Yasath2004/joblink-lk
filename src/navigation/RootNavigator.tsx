@@ -1,11 +1,15 @@
 import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import SplashScreen from "../screens/onboarding/SplashScreen";
 import LoginScreen from "../screens/onboarding/LoginScreen";
 import RoleSelectScreen from "../screens/onboarding/RoleSelectScreen";
 import RegisterScreen from "../screens/onboarding/RegisterScreen";
+import OtpScreen from "../screens/onboarding/OtpScreen";
+import PushSetup from "../components/PushSetup";
+import VerificationHubScreen from "../screens/shared/VerificationHubScreen";
+import CompleteProfileScreen from "../screens/shared/CompleteProfileScreen";
 import ProfileSetupScreen from "../screens/onboarding/ProfileSetupScreen";
 import SkillsSelectScreen from "../screens/onboarding/SkillsSelectScreen";
 
@@ -22,16 +26,21 @@ import PostJobScreen from "../screens/employer/PostJobScreen";
 import MyJobsScreen from "../screens/employer/MyJobsScreen";
 
 const Stack = createNativeStackNavigator();
+const navRef = createNavigationContainerRef();
 
 export default function RootNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navRef}>
+      <PushSetup navRef={navRef} />
       <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Splash">
         {/* Onboarding */}
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="RoleSelect" component={RoleSelectScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="Otp" component={OtpScreen} />
+        <Stack.Screen name="VerificationHub" component={VerificationHubScreen} />
+        <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} />
         <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
         <Stack.Screen name="SkillsSelect" component={SkillsSelectScreen} />
 

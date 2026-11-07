@@ -1,6 +1,7 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../theme/theme";
 import MyJobsScreen from "../screens/employer/MyJobsScreen";
 import PostJobScreen from "../screens/employer/PostJobScreen";
@@ -18,6 +19,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 export default function EmployerTabs() {
+  const insets = useSafeAreaInsets();
   const { t } = useLanguage();
 
   return (
@@ -26,7 +28,7 @@ export default function EmployerTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: { height: 62, paddingBottom: 8, paddingTop: 6 },
+        tabBarStyle: { height: 58 + insets.bottom, paddingBottom: 6 + insets.bottom, paddingTop: 6 },
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         tabBarIcon: ({ color, size, focused }) => (
           <Ionicons

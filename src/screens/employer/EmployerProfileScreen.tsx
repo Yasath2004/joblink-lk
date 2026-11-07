@@ -1,14 +1,20 @@
 import React, { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "../../components/SafeScreen";
 import { colors, radius, shadow, spacing } from "../../theme/theme";
 import { PostedJob } from "../../data/mockData";
 import { fetchMyJobs } from "../../data/jobsApi";
 import { fetchMyProfile, fetchStats, fetchUserRating, Profile, ProfileStats } from "../../data/profileApi";
 import { logoutAndReset } from "../../lib/auth";
-import { colorFor } from "../../data/util";
-import Avatar from "../../components/Avatar";
+import { MenuCard, MenuRow, ProfileHero, Section, StatsStrip, verifyHint } from "../../components/ProfileParts";
+
+const PILL: Record<string, { bg: string; color: string; label: string }> = {
+  active: { bg: colors.successBg, color: colors.success, label: "Active" },
+  closed: { bg: colors.surfaceMuted, color: colors.textMuted, label: "Closed" },
+  draft: { bg: colors.amberBg, color: colors.amber, label: "Draft" },
+};
 
 export default function EmployerProfileScreen({ navigation }: any) {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -28,92 +34,88 @@ export default function EmployerProfileScreen({ navigation }: any) {
     }, [])
   );
 
-  const name = profile?.fullName || "My Profile";
+  const name = profile?.businessName || profile?.fullName || "My Profile";
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Profile</Text>
-        <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-          <Ionicons name="settings-outline" size={20} color={colors.textDark} />
+        <TouchableOpacity style={styles.gear} onPress={() => navigation.navigate("Settings")}>
+          <Ionicons name="settings-outline" size={19} color={colors.textDark} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 40 }}>
-        <View style={styles.profileRow}>
-          <Avatar name={name} color={colorFor(name)} uri={profile?.avatarUrl} size={56} />
-          <View style={{ marginLeft: spacing.md, flex: 1 }}>
-            <Text style={styles.name}>{name}</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-              <Ionicons name="star" size={12} color={colors.star} />
-              <Text style={styles.metaText}>
-                {" "}
-                {rating.reviews > 0 ? `${rating.rating} (${rating.reviews} reviews)` : "No reviews yet"}
-              </Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ProfileHero
+          name={name}
+          avatarUrl={profile?.avatarUrl}
+          location={profile?.location}
+          rating={rating.rating}
+          reviews={rating.reviews}
+          onEdit={() => navigation.navigate("CompleteProfile", { step: 0 })}
+          verified={profile?.verification === "verified"}
+        />
+
+        <StatsStrip
+          items={[
+            { value: String(stats.employerPosted), label: "Jobs posted" },
+            { value: String(stats.employerHired), label: "Total hired" },
+            { value: rating.reviews > 0 ? rating.rating.toFixed(1) : "–", label: "Avg rating", star: rating.reviews > 0 },
+          ]}
+        />
+
+        <Section title="Recent postings" action={postedJobs.length > 3 ? "See all" : undefined} onAction={() => navigation.navigate("MyJobs")}>
+          {postedJobs.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Ionicons name="briefcase-outline" size={26} color={colors.textMuted} />
+              <Text style={styles.emptyText}>You haven't posted any jobs yet</Text>
             </View>
-          </View>
-        </View>
-
-        <View style={styles.statsRow}>
-          <StatBox value={String(stats.employerPosted)} label="Jobs Posted" />
-          <StatBox value={String(stats.employerHired)} label="Total Hired" />
-          <StatBox value={rating.reviews > 0 ? `${rating.rating}★` : "–"} label="Avg Rating" />
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Postings</Text>
-        </View>
-        <View style={[styles.card, shadow.card]}>
-          {postedJobs.length === 0 && <Text style={styles.jobMeta}>You haven't posted any jobs yet.</Text>}
-          {postedJobs.slice(0, 3).map((j, i) => (
-            <View key={j.id} style={[styles.jobRow, i > 0 && styles.divider]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.jobTitle}>{j.title}</Text>
-                <Text style={styles.jobMeta}>{j.applicants} applicants</Text>
-              </View>
-              <StatusPill status={j.status} />
+          ) : (
+            <View style={[styles.card, shadow.card]}>
+              {postedJobs.slice(0, 3).map((j, i) => {
+                const pill = PILL[j.status] ?? PILL.active;
+                return (
+                  <TouchableOpacity
+                    key={j.id}
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate("Applicants", { job: j })}
+                    style={[styles.jobRow, i > 0 && styles.divider]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.jobTitle} numberOfLines={1}>
+                        {j.title}
+                      </Text>
+                      <Text style={styles.jobMeta}>
+                        {j.applicants} applicants · {j.job.filled ?? 0}/{j.job.workersNeeded ?? 1} hired
+                      </Text>
+                    </View>
+                    <View style={[styles.pill, { backgroundColor: pill.bg }]}>
+                      <Text style={[styles.pillText, { color: pill.color }]}>{pill.label}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          ))}
-        </View>
+          )}
+        </Section>
 
-        <View style={[styles.card, shadow.card, { marginTop: spacing.xl }]}>
-          <TouchableOpacity style={styles.linkRow} onPress={() => navigation.navigate("Settings")}>
-            <Ionicons name="settings-outline" size={18} color={colors.primaryDark} />
-            <Text style={styles.linkText}>Settings</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-          <View style={styles.divider} />
-          <TouchableOpacity style={styles.linkRow} onPress={() => logoutAndReset(navigation)}>
-            <Ionicons name="log-out-outline" size={18} color={colors.urgent} />
-            <Text style={[styles.linkText, { color: colors.urgent }]}>Log out</Text>
-          </TouchableOpacity>
-        </View>
+        <Section title="Account">
+          <MenuCard>
+            <MenuRow
+              icon="shield-checkmark-outline"
+              label="Verify account"
+              hint={verifyHint(profile?.verification).text}
+              hintColor={verifyHint(profile?.verification).color}
+              onPress={() => navigation.navigate("VerificationHub")}
+            />
+            <MenuRow icon="create-outline" label="Edit business profile" onPress={() => navigation.navigate("CompleteProfile", { step: 0 })} />
+            <MenuRow icon="settings-outline" label="Settings" onPress={() => navigation.navigate("Settings")} />
+            <MenuRow icon="log-out-outline" label="Log out" danger last onPress={() => logoutAndReset(navigation)} />
+          </MenuCard>
+        </Section>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function StatBox({ value, label }: { value: string; label: string }) {
-  return (
-    <View style={[styles.statBox, shadow.card]}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: colors.successBg, color: colors.success },
-    closed: { bg: colors.surfaceMuted, color: colors.textMuted },
-    draft: { bg: colors.amberBg, color: colors.amber },
-  };
-  const c = map[status];
-  return (
-    <View style={[styles.pill, { backgroundColor: c.bg }]}>
-      <Text style={[styles.pillText, { color: c.color }]}>{status}</Text>
-    </View>
   );
 }
 
@@ -121,35 +123,29 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surfaceMuted },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: colors.textDark },
-  profileRow: { flexDirection: "row", alignItems: "center", marginTop: spacing.lg },
-  name: { fontSize: 17, fontWeight: "800", color: colors.textDark },
-  metaText: { fontSize: 12, color: colors.textMuted },
-  statsRow: { flexDirection: "row", marginTop: spacing.xl },
-  statBox: {
-    flex: 1,
+  headerTitle: { fontSize: 22, fontWeight: "800", color: colors.textDark },
+  gear: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#fff",
-    borderRadius: radius.md,
     alignItems: "center",
-    paddingVertical: spacing.md,
-    marginRight: spacing.sm,
+    justifyContent: "center",
   },
-  statValue: { fontSize: 16, fontWeight: "800", color: colors.primaryDark },
-  statLabel: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
-  sectionHeader: { marginTop: spacing.xl, marginBottom: spacing.sm },
-  sectionTitle: { fontSize: 15, fontWeight: "800", color: colors.textDark },
-  card: { backgroundColor: "#fff", borderRadius: radius.md, overflow: "hidden" },
-  jobRow: { flexDirection: "row", alignItems: "center", padding: spacing.md },
-  jobTitle: { fontSize: 13, fontWeight: "700", color: colors.textDark },
-  jobMeta: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  pill: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill },
-  pillText: { fontSize: 10, fontWeight: "700", textTransform: "capitalize" },
+  content: { padding: spacing.xl, paddingTop: spacing.md, paddingBottom: 40 },
+  emptyBox: { alignItems: "center", backgroundColor: "#fff", borderRadius: radius.lg, paddingVertical: spacing.xl },
+  emptyText: { color: colors.textMuted, fontSize: 13, marginTop: spacing.sm },
+  card: { backgroundColor: "#fff", borderRadius: radius.lg, overflow: "hidden" },
+  jobRow: { flexDirection: "row", alignItems: "center", padding: spacing.lg },
   divider: { borderTopWidth: 1, borderTopColor: colors.border },
-  linkRow: { flexDirection: "row", alignItems: "center", padding: spacing.md },
-  linkText: { flex: 1, marginLeft: spacing.md, fontSize: 13, fontWeight: "600", color: colors.textDark },
+  jobTitle: { fontSize: 14, fontWeight: "700", color: colors.textDark },
+  jobMeta: { fontSize: 12, color: colors.textMuted, marginTop: 3 },
+  pill: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginLeft: spacing.md },
+  pillText: { fontSize: 11, fontWeight: "700" },
 });

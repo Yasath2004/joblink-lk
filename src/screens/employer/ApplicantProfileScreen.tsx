@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "../../components/SafeScreen";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, shadow, spacing } from "../../theme/theme";
 import { Applicant, decideApplication } from "../../data/jobsApi";
@@ -14,6 +15,7 @@ import {
 import { getOrCreateConversation } from "../../data/socialApi";
 import { colorFor } from "../../data/util";
 import Avatar from "../../components/Avatar";
+import VerifiedBadge from "../../components/VerifiedBadge";
 import Chip from "../../components/Chip";
 import Button from "../../components/Button";
 
@@ -78,7 +80,10 @@ export default function ApplicantProfileScreen({ route, navigation }: any) {
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 130 }}>
         <View style={styles.top}>
           <Avatar name={name} color={colorFor(name)} uri={profile?.avatarUrl ?? applicant.avatarUrl} size={84} />
-          <Text style={styles.name}>{name}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: spacing.md }}>
+            <Text style={[styles.name, { marginTop: 0 }]}>{name}</Text>
+            {(profile?.verification === "verified" || applicant.verified) && <VerifiedBadge size={18} />}
+          </View>
           {!!jobTitle && <Text style={styles.applied}>Applied for "{jobTitle}"</Text>}
           <View style={styles.metaRow}>
             <Ionicons name="star" size={13} color={colors.star} />

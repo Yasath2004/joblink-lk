@@ -43,7 +43,9 @@ export function rowToJob(r: any): Job {
     date: r.job_date
       ? new Date(r.job_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
       : undefined,
-    time: r.job_time ? String(r.job_time).slice(0, 5) : undefined,
+    time: r.job_time
+      ? String(r.job_time).slice(0, 5) + (r.end_time ? " – " + String(r.end_time).slice(0, 5) : "")
+      : undefined,
     description: r.description,
     imageUrl: r.image_url ?? undefined,
     employerId: r.employer_id,
@@ -51,15 +53,23 @@ export function rowToJob(r: any): Job {
     filled: r.positions_filled ?? 0,
     rawDate: r.job_date ?? undefined,
     rawTime: r.job_time ? String(r.job_time).slice(0, 5) : undefined,
+    rawEndTime: r.end_time ? String(r.end_time).slice(0, 5) : undefined,
     lat: r.lat ?? null,
     lng: r.lng ?? null,
     employer: emp
-      ? { name: emp.full_name || "Employer", rating: 0, reviews: 0, avatarUrl: emp.avatar_url ?? undefined }
+      ? {
+          name: emp.business_name || emp.full_name || "Employer",
+          rating: 0,
+          reviews: 0,
+          avatarUrl: emp.avatar_url ?? undefined,
+          verified: emp.verification_status === "verified",
+        }
       : undefined,
   };
 }
 
-const JOB_SELECT = "*, employer:profiles!jobs_employer_id_fkey(full_name, avatar_url)";
+const JOB_SELECT =
+  "*, employer:profiles!jobs_employer_id_fkey(full_name, avatar_url, business_name, verification_status)";
 
 // ---------- jobs ------------------------------------------------------------
 export async function fetchJobs(): Promise<Job[]> {
@@ -113,7 +123,8 @@ export interface NewJob {
   payType: string; // "Fixed" | "Per day" | "Per trip"
   location: string;
   date: Date | null;
-  time: Date | null;
+  time: Date | null; // start time
+  endTime?: Date | null;
   urgent?: boolean;
   workersNeeded?: number;
   lat?: number | null;
@@ -139,6 +150,7 @@ export async function createJob(job: NewJob) {
     location: job.location.trim(),
     job_date: d ? `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}` : null,
     job_time: t ? `${two(t.getHours())}:${two(t.getMinutes())}` : null,
+    end_time: job.endTime ? `${two(job.endTime.getHours())}:${two(job.endTime.getMinutes())}` : null,
     urgent: !!job.urgent,
     workers_needed: Math.max(1, Math.min(100, job.workersNeeded ?? 1)),
     lat: job.lat ?? null,
@@ -238,6 +250,7 @@ export interface Applicant {
   bio: string;
   skills: Category[];
   years: number;
+  verified: boolean;
   location?: string;
   rating: number;
   reviews: number;
@@ -249,7 +262,7 @@ export async function fetchApplicants(jobId: string): Promise<Applicant[]> {
   const { data, error } = await supabase
     .from("applications")
     .select(
-      "id, status, created_at, worker:profiles!applications_worker_id_fkey(id, full_name, bio, skills, years_experience, location, avatar_url)"
+      "id, status, created_at, worker:profiles!applications_worker_id_fkey(id, full_name, bio, skills, years_experience, location, avatar_url, verification_status)"
     )
     .eq("job_id", jobId)
     .order("created_at", { ascending: true });
@@ -272,6 +285,7 @@ export async function fetchApplicants(jobId: string): Promise<Applicant[]> {
     bio: a.worker.bio || "",
     skills: (a.worker.skills ?? []) as Category[],
     years: a.worker.years_experience ?? 0,
+    verified: a.worker.verification_status === "verified",
     location: a.worker.location ?? undefined,
     rating: ratings[a.worker.id]?.avg ?? 0,
     reviews: ratings[a.worker.id]?.n ?? 0,
@@ -304,6 +318,7 @@ export async function updateJob(id: string, job: NewJob, imageAction: "keep" | "
     location: job.location.trim(),
     job_date: d ? `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}` : null,
     job_time: t ? `${two(t.getHours())}:${two(t.getMinutes())}` : null,
+    end_time: job.endTime ? `${two(job.endTime.getHours())}:${two(job.endTime.getMinutes())}` : null,
     urgent: !!job.urgent,
     workers_needed: Math.max(1, Math.min(100, job.workersNeeded ?? 1)),
     lat: job.lat ?? null,
@@ -313,6 +328,7 @@ export async function updateJob(id: string, job: NewJob, imageAction: "keep" | "
   if (imageAction === "remove") row.image_url = null;
   const { error } = await supabase.from("jobs").update(row).eq("id", id);
   if (error) {
+    if (/jobs_time_order/.test(error.message)) throw new Error("End time must be after the start time.");
     if (/jobs_filled_le_needed/.test(error.message)) throw new Error("Workers needed cannot be less than the workers already hired.");
     throw new Error(error.message);
   }
@@ -341,4 +357,12 @@ export async function fetchMarketStats(): Promise<MarketStats | null> {
     avgPay: Number(data.avg_pay ?? 0),
     openPositions: Number(data.open_positions ?? 0),
   };
+}
+
+// Title of a job I am already booked for at the time of this job (null = no clash)
+export async function getMyBookingConflict(jobId: string): Promise<string | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  const { data } = await supabase.rpc("my_booking_conflict", { p_job: jobId });
+  return typeof data === "string" ? data : null;
 }

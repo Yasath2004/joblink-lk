@@ -1,11 +1,14 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { FlatList, Image, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "../../components/SafeScreen";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, shadow, spacing } from "../../theme/theme";
 import { PostedJob, categoryColor, categoryIcon } from "../../data/mockData";
 import { fetchMyJobs } from "../../data/jobsApi";
 import Chip from "../../components/Chip";
+import { fetchProgress, Progress } from "../../data/verifyApi";
+import ProfileProgressCard from "../../components/ProfileProgressCard";
 import { fetchMyProfile } from "../../data/profileApi";
 
 const TABS = ["All Jobs", "Active", "Closed"] as const;
@@ -14,10 +17,12 @@ export default function MyJobsScreen({ navigation }: any) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("All Jobs");
   const [postedJobs, setPostedJobs] = useState<PostedJob[]>([]);
   const [myName, setMyName] = useState("");
+  const [progress, setProgress] = useState<Progress | null>(null);
 
   const load = useCallback(() => {
     fetchMyJobs().then(setPostedJobs);
-    fetchMyProfile().then((p) => setMyName(p?.fullName ?? ""));
+    fetchMyProfile().then((p) => setMyName(p?.businessName || p?.fullName || ""));
+    fetchProgress().then(setProgress);
   }, []);
   useFocusEffect(load);
 
@@ -40,6 +45,8 @@ export default function MyJobsScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
       </View>
+
+      <ProfileProgressCard progress={progress} onPress={() => navigation.navigate("VerificationHub")} />
 
       <View style={styles.statsRow}>
         <View style={[styles.statCard, shadow.card]}>

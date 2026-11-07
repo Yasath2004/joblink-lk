@@ -1,6 +1,7 @@
 import { Category } from "./mockData";
 import { supabase } from "../lib/supabase";
 import { currentUserId, uploadImage } from "./jobsApi";
+import { VerifyStatus } from "./verifyApi";
 import { timeAgo } from "./util";
 
 export interface Profile {
@@ -13,6 +14,10 @@ export interface Profile {
   years: number;
   avatarUrl?: string;
   joined?: string;
+  availability?: string;
+  businessName?: string;
+  businessType?: string;
+  verification: VerifyStatus;
 }
 
 function toProfile(r: any): Profile {
@@ -26,6 +31,10 @@ function toProfile(r: any): Profile {
     years: r.years_experience ?? 0,
     avatarUrl: r.avatar_url ?? undefined,
     joined: r.created_at ?? undefined,
+    availability: r.availability ?? undefined,
+    businessName: r.business_name ?? undefined,
+    businessType: r.business_type ?? undefined,
+    verification: (r.verification_status ?? "unverified") as VerifyStatus,
   };
 }
 
@@ -41,6 +50,9 @@ export async function updateMyProfile(patch: {
   bio?: string;
   skills?: string[];
   years?: number;
+  availability?: string | null;
+  businessName?: string;
+  businessType?: string | null;
   avatar?: { uri: string; mimeType?: string | null } | null;
 }) {
   const uid = await currentUserId();
@@ -50,6 +62,9 @@ export async function updateMyProfile(patch: {
   if (patch.bio !== undefined) row.bio = patch.bio.trim();
   if (patch.skills !== undefined) row.skills = patch.skills;
   if (patch.years !== undefined) row.years_experience = patch.years;
+  if (patch.availability !== undefined) row.availability = patch.availability;
+  if (patch.businessName !== undefined) row.business_name = patch.businessName.trim() || null;
+  if (patch.businessType !== undefined) row.business_type = patch.businessType;
   if (patch.avatar) row.avatar_url = await uploadImage("avatars", patch.avatar.uri, patch.avatar.mimeType);
   if (!Object.keys(row).length) return;
   const { error } = await supabase.from("profiles").update(row).eq("id", uid);

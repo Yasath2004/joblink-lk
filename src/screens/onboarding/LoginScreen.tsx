@@ -15,55 +15,40 @@ import { colors, radius, spacing } from "../../theme/theme";
 import Input from "../../components/Input";
 import Button from "../../components/Button";
 import { useLanguage } from "../../i18n/LanguageContext";
-import { signIn } from "../../lib/auth";
-
-// Sri Lankan mobile format: 07X XXX XXXX (10 digits, starts with 07)
-const PHONE_REGEX = /^07\d{8}$/;
+import { isLkMobile, sendOtp } from "../../lib/auth";
 
 export default function LoginScreen({ navigation }: any) {
   const { t } = useLanguage();
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ phone?: string; password?: string }>({});
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const validate = () => {
-    const next: { phone?: string; password?: string } = {};
-    const digitsOnly = phone.replace(/\s/g, "");
-    if (!PHONE_REGEX.test(digitsOnly)) next.phone = t("invalid_phone");
-    if (!password.trim()) next.password = t("password_required");
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const handleLogin = async () => {
-    if (!validate()) return;
-    setLoading(true);
-    // Supabase: log in, or create the account on first use.
-    const res = await signIn(phone.replace(/\s/g, ""), password);
-    setLoading(false);
-    if (res.error) {
-      setErrors({ password: res.error });
+  const handleSend = async () => {
+    if (!isLkMobile(phone)) {
+      setError(t("invalid_phone"));
       return;
     }
-    if (res.role === "worker") navigation.replace("WorkerTabs");
-    else if (res.role === "employer") navigation.replace("EmployerTabs");
-    else setErrors({ password: "Account profile not found. Please contact support." });
+    setError("");
+    setLoading(true);
+    const res = await sendOtp(phone, "login");
+    setLoading(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    navigation.navigate("Otp", { phone, mode: "login" });
   };
 
   return (
     <LinearGradient colors={[colors.bgDark, colors.bgDarker]} style={{ flex: 1 }}>
       <StatusBar barStyle="light-content" />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.logoWrap}>
             <Ionicons name="briefcase" size={28} color={colors.bgDark} />
           </View>
           <Text style={styles.title}>{t("welcome_back")}</Text>
-          <Text style={styles.subtitle}>{t("sign_in_subtitle")}</Text>
+          <Text style={styles.subtitle}>Enter your mobile number and we'll text you a 6-digit code.</Text>
 
           <View style={styles.card}>
             <Input
@@ -74,30 +59,18 @@ export default function LoginScreen({ navigation }: any) {
               value={phone}
               onChangeText={(v) => {
                 setPhone(v);
-                if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
+                if (error) setError("");
               }}
-              maxLength={10}
+              maxLength={12}
             />
-            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+            {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-            <Input
-              label={t("password")}
-              icon="lock-closed-outline"
-              placeholder={t("password_placeholder")}
-              secure
-              value={password}
-              onChangeText={(v) => {
-                setPassword(v);
-                if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
-              }}
-            />
-            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+            <Button label="Send OTP" icon="arrow-forward" loading={loading} onPress={handleSend} />
 
-            <TouchableOpacity style={{ alignSelf: "flex-end", marginBottom: spacing.lg }}>
-              <Text style={styles.forgot}>{t("forgot_password")}</Text>
-            </TouchableOpacity>
-
-            <Button label={t("login")} icon="arrow-forward" loading={loading} onPress={handleLogin} />
+            <View style={styles.secure}>
+              <Ionicons name="shield-checkmark-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.secureText}>No password needed. Standard SMS rates may apply.</Text>
+            </View>
           </View>
 
           <View style={styles.signupRow}>
@@ -131,12 +104,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: spacing.xl,
   },
-  card: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-  },
+  card: { width: "100%", backgroundColor: "#fff", borderRadius: radius.xl, padding: spacing.lg },
   errorText: {
     color: colors.urgent,
     fontSize: 11,
@@ -144,10 +112,8 @@ const styles = StyleSheet.create({
     marginTop: -spacing.md,
     marginBottom: spacing.md,
   },
-  forgot: { fontSize: 12, color: colors.primaryDark, fontWeight: "600" },
-  dividerRow: { flexDirection: "row", alignItems: "center", marginVertical: spacing.lg },
-  divider: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { fontSize: 11, color: colors.textMuted, marginHorizontal: spacing.sm },
+  secure: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: spacing.md },
+  secureText: { fontSize: 11, color: colors.textMuted, marginLeft: 6 },
   signupRow: { flexDirection: "row", marginTop: spacing.xl },
   signupText: { color: colors.textOnDarkMuted, fontSize: 13 },
   signupLink: { color: "#fff", fontWeight: "700", fontSize: 13 },

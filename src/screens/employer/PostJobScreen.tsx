@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Alert, Image, Platform, SafeAreaView, Switch, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Image, Platform, Switch, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "../../components/SafeScreen";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimeField from "../../components/DateTimeField";
 import LocationInput from "../../components/LocationInput";
@@ -44,6 +45,7 @@ export default function PostJobScreen({ navigation, route }: any) {
 
   const [date, setDate] = useState<Date | null>(parseDate(editing?.rawDate));
   const [time, setTime] = useState<Date | null>(parseTime(editing?.rawTime));
+  const [endTime, setEndTime] = useState<Date | null>(parseTime(editing?.rawEndTime));
 
   const [place, setPlace] = useState<Place | null>(
     editing?.lat != null && editing?.lng != null ? { label: editing.location, lat: editing.lat, lng: editing.lng } : null
@@ -64,6 +66,12 @@ export default function PostJobScreen({ navigation, route }: any) {
     if (!pay.trim() || isNaN(Number(pay)) || Number(pay) <= 0) next.pay = "Enter a valid amount";
     if (!location.trim()) next.location = "Location is required";
     if (!date) next.date = "Select a date";
+    if (!time) next.time = "Select start time";
+    if (!endTime) next.endTime = "Select end time";
+    if (time && endTime) {
+      const mins = (d: Date) => d.getHours() * 60 + d.getMinutes();
+      if (mins(endTime) <= mins(time)) next.endTime = "End time must be after start time";
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -91,6 +99,7 @@ export default function PostJobScreen({ navigation, route }: any) {
         location,
         date,
         time,
+        endTime,
         urgent,
         workersNeeded: workers,
         lat: place?.lat ?? null,
@@ -112,6 +121,7 @@ export default function PostJobScreen({ navigation, route }: any) {
         setLocation("");
         setDate(null);
         setTime(null);
+        setEndTime(null);
         setPlace(null);
         setUrgent(false);
         setWorkers(1);
@@ -296,11 +306,38 @@ export default function PostJobScreen({ navigation, route }: any) {
             />
             {!!errors.date && <Text style={[styles.errorText, { marginTop: -spacing.md }]}>{errors.date}</Text>}
           </View>
-          <View style={{ flex: 1 }}>
+        </View>
+
+        <View style={styles.row2}>
+          <View style={{ flex: 1, marginRight: spacing.sm }}>
             <Text style={styles.label}>Start Time</Text>
-            <DateTimeField mode="time" value={time} onChange={setTime} />
+            <DateTimeField
+              mode="time"
+              value={time}
+              onChange={(d) => {
+                setTime(d);
+                if (errors.time) setErrors((e) => ({ ...e, time: "" }));
+              }}
+            />
+            {!!errors.time && <Text style={[styles.errorText, { marginTop: -spacing.md }]}>{errors.time}</Text>}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>End Time</Text>
+            <DateTimeField
+              mode="time"
+              placeholder="Select end time"
+              value={endTime}
+              onChange={(d) => {
+                setEndTime(d);
+                if (errors.endTime) setErrors((e) => ({ ...e, endTime: "" }));
+              }}
+            />
+            {!!errors.endTime && <Text style={[styles.errorText, { marginTop: -spacing.md }]}>{errors.endTime}</Text>}
           </View>
         </View>
+        <Text style={styles.hint}>
+          Workers who are already booked for another job during this time period cannot apply.
+        </Text>
 
         <Button
           label={isEdit ? "Save Changes" : "Post Job"}
@@ -356,6 +393,7 @@ const styles = StyleSheet.create({
   dropdownItem: { padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   dropdownText: { fontSize: 13, color: colors.textDark },
   row2: { flexDirection: "row" },
+  hint: { fontSize: 11, color: colors.textMuted, marginTop: -spacing.sm, marginBottom: spacing.lg },
   photoAdd: {
     height: 110,
     borderRadius: radius.md,

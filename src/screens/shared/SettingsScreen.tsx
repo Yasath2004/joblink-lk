@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ScrollView, SafeAreaView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "../../components/SafeScreen";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, spacing } from "../../theme/theme";
 import { useLanguage } from "../../i18n/LanguageContext";

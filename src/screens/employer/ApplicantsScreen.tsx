@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { Alert, FlatList, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "../../components/SafeScreen";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, shadow, spacing } from "../../theme/theme";
 import { Job } from "../../data/mockData";
@@ -9,6 +10,7 @@ import { getOrCreateConversation } from "../../data/socialApi";
 import { submitReview } from "../../data/profileApi";
 import { colorFor } from "../../data/util";
 import Avatar from "../../components/Avatar";
+import VerifiedBadge from "../../components/VerifiedBadge";
 import Chip from "../../components/Chip";
 import RateModal from "../../components/RateModal";
 
@@ -140,7 +142,10 @@ export default function ApplicantsScreen({ route, navigation }: any) {
             <TouchableOpacity style={styles.topRow} activeOpacity={0.7} onPress={() => openProfile(item)}>
               <Avatar name={item.name} color={colorFor(item.name)} uri={item.avatarUrl} size={44} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
-                <Text style={styles.name}>{item.name}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  {item.verified && <VerifiedBadge />}
+                </View>
                 <View style={styles.metaRow}>
                   <Ionicons name="star" size={12} color={colors.star} />
                   <Text style={styles.metaText}>

@@ -65,12 +65,13 @@ export interface Job {
   description?: string;
   requirements?: string[];
   employerId?: string;
-  employer?: { name: string; rating: number; reviews: number; avatarUrl?: string };
+  employer?: { name: string; rating: number; reviews: number; avatarUrl?: string; verified?: boolean };
   imageUrl?: string;
   workersNeeded?: number;
   filled?: number;
   rawDate?: string; // YYYY-MM-DD
-  rawTime?: string; // HH:MM
+  rawTime?: string; // HH:MM (start)
+  rawEndTime?: string; // HH:MM
   lat?: number | null;
   lng?: number | null;
 }

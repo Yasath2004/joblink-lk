@@ -8,7 +8,9 @@
     "splash": {
       "backgroundColor": "#0B3B37"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "lk.joblink.app",
@@ -28,10 +30,19 @@
       "package": "lk.joblink.app",
       "adaptiveIcon": {
         "backgroundColor": "#0B3B37"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "991b6b81-9dc0-4df3-87d1-1b50f598ce03"
+      }
+    },
+    "owner": "yasa2004"
   }
 }

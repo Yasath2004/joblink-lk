@@ -11,7 +11,6 @@ import Button from "../../components/Button";
 
 export default function ProfileSetupScreen({ navigation }: any) {
   const [location, setLocation] = useState("");
-  const [nic, setNic] = useState("");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoMime, setPhotoMime] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -46,7 +45,6 @@ export default function ProfileSetupScreen({ navigation }: any) {
     setError("");
     setSaving(true);
     try {
-      // NIC is only checked on screen, it is never stored in the database.
       await updateMyProfile({
         location,
         avatar: photoUri ? { uri: photoUri, mimeType: photoMime } : null,
@@ -94,14 +92,12 @@ export default function ProfileSetupScreen({ navigation }: any) {
           />
           {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-          <Input
-            label="NIC Number (optional)"
-            icon="card-outline"
-            placeholder="XXX XXX XXXX X"
-            hint="Used for identity verification badge"
-            value={nic}
-            onChangeText={setNic}
-          />
+          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surfaceMint, borderRadius: 12, padding: 12, marginBottom: 16 }}>
+            <Ionicons name="shield-checkmark" size={20} color="#2563EB" />
+            <Text style={{ flex: 1, marginLeft: 10, fontSize: 12, color: colors.textBody }}>
+              Want a verified badge? You can add your email and NIC later from the Home screen.
+            </Text>
+          </View>
 
           <Button label="Next: Select Skills" icon="arrow-forward" loading={saving} onPress={handleNext} />
         </View>

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   Image,
   Alert,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -10,13 +9,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "../../components/SafeScreen";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, spacing } from "../../theme/theme";
 import { Job, categoryColor, categoryIcon } from "../../data/mockData";
 import Chip from "../../components/Chip";
 import Button from "../../components/Button";
 import Avatar from "../../components/Avatar";
-import { AppStatus, applyToJob, getApplicationStatus } from "../../data/jobsApi";
+import VerifiedBadge from "../../components/VerifiedBadge";
+import { AppStatus, applyToJob, getApplicationStatus, getMyBookingConflict } from "../../data/jobsApi";
 import { fetchUserRating } from "../../data/profileApi";
 import { colorFor } from "../../data/util";
 
@@ -24,10 +25,15 @@ export default function JobDetailsScreen({ route, navigation }: any) {
   const job: Job = route.params.job;
   const [appStatus, setAppStatus] = useState<AppStatus | null>(null);
   const [applying, setApplying] = useState(false);
+  const [conflict, setConflict] = useState<string | null>(null);
   const [empRating, setEmpRating] = useState({ rating: 0, reviews: 0 });
 
   useEffect(() => {
-    getApplicationStatus(job.id).then(setAppStatus);
+    getApplicationStatus(job.id).then((st) => {
+      setAppStatus(st);
+      // Only check for a time clash if I have not applied to this job yet
+      if (!st) getMyBookingConflict(job.id).then(setConflict);
+    });
     if (job.employerId) fetchUserRating(job.employerId).then(setEmpRating);
   }, [job.id]);
 
@@ -121,7 +127,10 @@ export default function JobDetailsScreen({ route, navigation }: any) {
         <View style={styles.employerRow}>
           <Avatar name={job.employer?.name || "Employer"} color={colorFor(job.employer?.name || "E")} uri={job.employer?.avatarUrl} />
           <View style={{ marginLeft: spacing.md, flex: 1 }}>
-            <Text style={styles.employerName}>{job.employer?.name || "JobLink Employer"}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={styles.employerName}>{job.employer?.name || "JobLink Employer"}</Text>
+              {job.employer?.verified && <VerifiedBadge />}
+            </View>
             <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
               <Ionicons name="star" size={12} color={colors.star} />
               <Text style={styles.employerMeta}>
@@ -143,6 +152,23 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       </ScrollView>
 
       <View style={styles.footer}>
+        {!!conflict && !appStatus && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: colors.amberBg,
+              borderRadius: radius.md,
+              padding: spacing.md,
+              marginBottom: spacing.md,
+            }}
+          >
+            <Ionicons name="alert-circle" size={18} color={colors.amber} />
+            <Text style={{ flex: 1, marginLeft: spacing.sm, fontSize: 12, color: colors.textDark }}>
+              You are already booked for "{conflict}" at this time, so you can't apply for this job.
+            </Text>
+          </View>
+        )}
         <Button
           label={
             appStatus === "accepted"
@@ -151,11 +177,13 @@ export default function JobDetailsScreen({ route, navigation }: any) {
               ? "Declined"
               : appStatus === "pending"
               ? "Applied ✓"
+              : conflict
+              ? "Time clash"
               : "Apply Now"
           }
           variant={appStatus === "rejected" ? "outline" : "primary"}
-          icon={appStatus ? undefined : "arrow-forward"}
-          disabled={!!appStatus}
+          icon={appStatus || conflict ? undefined : "arrow-forward"}
+          disabled={!!appStatus || !!conflict}
           loading={applying}
           onPress={apply}
         />
