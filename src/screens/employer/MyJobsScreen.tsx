@@ -94,7 +94,7 @@ export default function MyJobsScreen({ navigation }: any) {
                   <Text style={styles.jcTitle} numberOfLines={2}>
                     {item.title}
                   </Text>
-                  <StatusPill status={item.status} />
+                  <StatusPill status={item.status} approval={item.job.approvalStatus} />
                 </View>
 
                 <View style={styles.jcChips}>
@@ -116,6 +116,23 @@ export default function MyJobsScreen({ navigation }: any) {
                     {[item.job.date, item.job.time].filter(Boolean).join(" · ") || "Flexible"} · posted {item.postedAgo}
                   </Text>
                 </View>
+
+                {item.job.approvalStatus === "pending" && (
+                  <View style={[styles.jcNote, { backgroundColor: colors.amberBg }]}>
+                    <Ionicons name="time-outline" size={14} color={colors.amber} />
+                    <Text style={[styles.jcNoteText, { color: colors.amber }]}>
+                      Waiting for approval. Workers can't see this ad yet.
+                    </Text>
+                  </View>
+                )}
+                {item.job.approvalStatus === "rejected" && (
+                  <View style={[styles.jcNote, { backgroundColor: colors.urgentBg }]}>
+                    <Ionicons name="alert-circle-outline" size={14} color={colors.urgent} />
+                    <Text style={[styles.jcNoteText, { color: colors.urgent }]}>
+                      Not approved{item.job.rejectionReason ? `: ${item.job.rejectionReason}` : ""}. Open the ad and tap the pencil to fix it.
+                    </Text>
+                  </View>
+                )}
 
                 <View style={styles.jcDivider} />
 
@@ -143,7 +160,22 @@ export default function MyJobsScreen({ navigation }: any) {
   );
 }
 
-function StatusPill({ status }: { status: string }) {
+function StatusPill({ status, approval }: { status: string; approval?: string }) {
+  // the admin review comes first: a job that is not approved is not really "active" yet
+  if (approval === "pending") {
+    return (
+      <View style={[styles.pill, { backgroundColor: colors.amberBg }]}>
+        <Text style={[styles.pillText, { color: colors.amber }]}>in review</Text>
+      </View>
+    );
+  }
+  if (approval === "rejected") {
+    return (
+      <View style={[styles.pill, { backgroundColor: colors.urgentBg }]}>
+        <Text style={[styles.pillText, { color: colors.urgent }]}>rejected</Text>
+      </View>
+    );
+  }
   const map: Record<string, { bg: string; color: string }> = {
     active: { bg: colors.successBg, color: colors.success },
     closed: { bg: colors.surfaceMuted, color: colors.textMuted },
@@ -227,6 +259,8 @@ const styles = StyleSheet.create({
   jcPayType: { fontSize: 11, fontWeight: "500", color: colors.textMuted },
   jcMeta: { flexDirection: "row", alignItems: "center", marginTop: 4 },
   jcMetaText: { flex: 1, fontSize: 12, color: colors.textMuted, marginLeft: 6 },
+  jcNote: { flexDirection: "row", alignItems: "center", borderRadius: radius.md, padding: spacing.sm, marginTop: spacing.sm },
+  jcNoteText: { flex: 1, fontSize: 11, fontWeight: "600", marginLeft: 6 },
   jcDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
   jcStats: { flexDirection: "row", alignItems: "center" },
   jcStat: { flexDirection: "row", alignItems: "center" },

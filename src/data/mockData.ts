@@ -74,6 +74,8 @@ export interface Job {
   rawEndTime?: string; // HH:MM
   lat?: number | null;
   lng?: number | null;
+  approvalStatus?: "pending" | "approved" | "rejected"; // admin review of the ad
+  rejectionReason?: string;
 }
 
 export interface PostedJob {

@@ -109,9 +109,11 @@ export default function PostJobScreen({ navigation, route }: any) {
       if (isEdit) {
         const imageAction = photo ? "replace" : existingImage ? "keep" : editing?.imageUrl ? "remove" : "keep";
         await updateJob(editing!.id, data, imageAction);
+        Alert.alert("Saved", "If you changed the ad details, an admin will check it again before workers see it.");
         navigation.goBack();
       } else {
         await createJob(data);
+        Alert.alert("Submitted for review", "An admin will check your ad. It goes live as soon as it is approved, and we will notify you.");
         // clear the form so the next job starts empty
         setTitle("");
         setCategory(null);

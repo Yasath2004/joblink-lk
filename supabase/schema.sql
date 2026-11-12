@@ -50,8 +50,18 @@ create table if not exists public.jobs (
   workers_needed int not null default 1 check (workers_needed between 1 and 100),
   positions_filled int not null default 0,
   status text not null default 'active' check (status in ('active','closed','draft')),
+  approval_status text not null default 'pending' check (approval_status in ('pending','approved','rejected')),
+  rejection_reason text,
+  reviewed_by uuid references auth.users(id) on delete set null,
+  reviewed_at timestamptz,
   created_at timestamptz not null default now()
 );
+-- existing databases: jobs that were already posted stay visible (approved); new ones start as 'pending'
+alter table public.jobs add column if not exists approval_status text not null default 'approved' check (approval_status in ('pending','approved','rejected'));
+alter table public.jobs alter column approval_status set default 'pending';
+alter table public.jobs add column if not exists rejection_reason text;
+alter table public.jobs add column if not exists reviewed_by uuid references auth.users(id) on delete set null;
+alter table public.jobs add column if not exists reviewed_at timestamptz;
 alter table public.jobs add column if not exists urgent boolean not null default false;
 alter table public.jobs add column if not exists end_time time;
 alter table public.jobs add column if not exists lat double precision;
@@ -149,10 +159,10 @@ create index if not exists jobs_feed_idx on public.jobs(status, urgent, created_
 create or replace function public.job_market_stats() returns json
 language sql stable as $$
   select json_build_object(
-    'open_jobs',      count(*) filter (where status = 'active'),
-    'urgent_jobs',    count(*) filter (where status = 'active' and urgent),
-    'avg_pay',        coalesce(round(avg(pay) filter (where status = 'active')), 0),
-    'open_positions', coalesce(sum(workers_needed - positions_filled) filter (where status = 'active'), 0)
+    'open_jobs',      count(*) filter (where status = 'active' and approval_status = 'approved'),
+    'urgent_jobs',    count(*) filter (where status = 'active' and approval_status = 'approved' and urgent),
+    'avg_pay',        coalesce(round(avg(pay) filter (where status = 'active' and approval_status = 'approved')), 0),
+    'open_positions', coalesce(sum(workers_needed - positions_filled) filter (where status = 'active' and approval_status = 'approved'), 0)
   ) from public.jobs
 $$;
 grant execute on function public.job_market_stats() to anon, authenticated;
@@ -568,6 +578,185 @@ drop trigger if exists trg_message_push on public.messages;
 create trigger trg_message_push after insert on public.messages
   for each row execute function public.on_message_push();
 
+-- ============================================================================
+-- ADMIN: approve job ads, review account verifications, web console
+-- Admins sign in to the web console with an e-mail + password (a Supabase Auth user) that is listed in `admins`.
+-- The console only uses the public anon key: every admin power below is checked in the database (is_admin()).
+-- Add an admin (once):  Authentication > Users > Add user (e-mail + password), then in the SQL editor:
+--   insert into public.admins (user_id) select id from auth.users where email = 'you@example.com';
+-- ============================================================================
+create table if not exists public.admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.admins enable row level security;
+drop policy if exists "admins: read own" on public.admins;
+create policy "admins: read own" on public.admins for select to authenticated using (user_id = auth.uid());
+
+create or replace function public.is_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.admins where user_id = auth.uid())
+$$;
+grant execute on function public.is_admin() to anon, authenticated;
+
+create table if not exists public.admin_audit_log (
+  id uuid primary key default gen_random_uuid(),
+  admin_id uuid references auth.users(id) on delete set null,
+  admin_email text,
+  action text not null,
+  target_type text,
+  target_id uuid,
+  note text,
+  created_at timestamptz not null default now()
+);
+create index if not exists admin_audit_created_idx on public.admin_audit_log(created_at desc);
+alter table public.admin_audit_log enable row level security;
+drop policy if exists "audit: admins read" on public.admin_audit_log;
+create policy "audit: admins read" on public.admin_audit_log for select to authenticated using (public.is_admin());
+-- (nobody can write to the log directly: only the admin functions below add rows)
+
+create index if not exists jobs_approval_idx on public.jobs(approval_status, created_at desc);
+
+-- Employers can edit their ad content but never set the approval fields themselves
+revoke insert, update on public.jobs from authenticated;
+grant insert (id, employer_id, title, category, description, pay, pay_type, location, job_date, job_time, end_time,
+              image_url, urgent, lat, lng, workers_needed, status) on public.jobs to authenticated;
+grant update (title, category, description, pay, pay_type, location, job_date, job_time, end_time,
+              image_url, urgent, lat, lng, workers_needed, status) on public.jobs to authenticated;
+
+-- If an employer changes what the ad says (text, pay, time, photo ...), it goes back to review
+create or replace function public.guard_job_review() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() and (
+       new.title is distinct from old.title or new.category is distinct from old.category
+    or new.description is distinct from old.description or new.pay is distinct from old.pay
+    or new.pay_type is distinct from old.pay_type or new.location is distinct from old.location
+    or new.job_date is distinct from old.job_date or new.job_time is distinct from old.job_time
+    or new.end_time is distinct from old.end_time or new.image_url is distinct from old.image_url
+    or new.workers_needed is distinct from old.workers_needed) then
+    new.approval_status := 'pending';
+    new.rejection_reason := null;
+    new.reviewed_by := null;
+    new.reviewed_at := null;
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_job_review_guard on public.jobs;
+create trigger trg_job_review_guard before update on public.jobs
+  for each row execute function public.guard_job_review();
+
+-- Tell the employer when their ad is approved / rejected
+create or replace function public.on_job_reviewed() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.approval_status is distinct from old.approval_status then
+    if new.approval_status = 'approved' then
+      insert into public.notifications(user_id, type, title, body)
+      values (new.employer_id, 'info', 'Job ad approved ✓', '"' || new.title || '" is now live. Workers can apply.');
+    elsif new.approval_status = 'rejected' then
+      insert into public.notifications(user_id, type, title, body)
+      values (new.employer_id, 'info', 'Job ad needs changes',
+              '"' || new.title || '" was not approved' || coalesce(': ' || new.rejection_reason, '') ||
+              '. Edit it and it will be reviewed again.');
+    end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_job_reviewed on public.jobs;
+create trigger trg_job_reviewed after update of approval_status on public.jobs
+  for each row execute function public.on_job_reviewed();
+
+-- ---- admin actions (each one checks is_admin() and writes the audit log) ----
+create or replace function public.admin_review_job(p_job uuid, p_approve boolean, p_reason text default null) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Admins only'; end if;
+  if not p_approve and coalesce(trim(p_reason), '') = '' then
+    raise exception 'Please give a reason for rejecting this job';
+  end if;
+  update public.jobs
+     set approval_status = case when p_approve then 'approved' else 'rejected' end,
+         rejection_reason = case when p_approve then null else trim(p_reason) end,
+         reviewed_by = auth.uid(), reviewed_at = now()
+   where id = p_job;
+  if not found then raise exception 'Job not found'; end if;
+  insert into public.admin_audit_log(admin_id, admin_email, action, target_type, target_id, note)
+  values (auth.uid(), (select email from auth.users where id = auth.uid()),
+          case when p_approve then 'job_approved' else 'job_rejected' end, 'job', p_job, p_reason);
+end $$;
+grant execute on function public.admin_review_job(uuid, boolean, text) to authenticated;
+
+create or replace function public.admin_review_account(p_user uuid, p_approve boolean, p_note text default null) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Admins only'; end if;
+  if not p_approve and coalesce(trim(p_note), '') = '' then
+    raise exception 'Please give a reason for rejecting this account';
+  end if;
+  update public.profile_private set review_note = case when p_approve then null else trim(p_note) end where user_id = p_user;
+  update public.profiles set verification_status = case when p_approve then 'verified' else 'rejected' end where id = p_user;
+  if not found then raise exception 'Account not found'; end if;
+  insert into public.admin_audit_log(admin_id, admin_email, action, target_type, target_id, note)
+  values (auth.uid(), (select email from auth.users where id = auth.uid()),
+          case when p_approve then 'account_verified' else 'account_rejected' end, 'user', p_user, p_note);
+end $$;
+grant execute on function public.admin_review_account(uuid, boolean, text) to authenticated;
+
+create or replace function public.admin_set_job_status(p_job uuid, p_status text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Admins only'; end if;
+  if p_status not in ('active', 'closed') then raise exception 'Status must be active or closed'; end if;
+  update public.jobs set status = p_status where id = p_job;
+  if not found then raise exception 'Job not found'; end if;
+  insert into public.admin_audit_log(admin_id, admin_email, action, target_type, target_id, note)
+  values (auth.uid(), (select email from auth.users where id = auth.uid()),
+          case when p_status = 'closed' then 'job_closed' else 'job_reopened' end, 'job', p_job, null);
+end $$;
+grant execute on function public.admin_set_job_status(uuid, text) to authenticated;
+
+-- Everything the Users page needs (phone numbers live in auth.users, so a function is needed)
+create or replace function public.admin_list_users()
+returns table (id uuid, full_name text, role text, phone text, verification_status text, business_name text,
+               created_at timestamptz, last_sign_in_at timestamptz, jobs_count int, applications_count int)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Admins only'; end if;
+  return query
+    select p.id, p.full_name, p.role, u.phone::text, p.verification_status, p.business_name,
+           p.created_at, u.last_sign_in_at,
+           (select count(*)::int from public.jobs j where j.employer_id = p.id),
+           (select count(*)::int from public.applications a where a.worker_id = p.id)
+      from public.profiles p
+      join auth.users u on u.id = p.id
+     order by p.created_at desc;
+end $$;
+grant execute on function public.admin_list_users() to authenticated;
+
+create or replace function public.admin_stats() returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Admins only'; end if;
+  return json_build_object(
+    'pending_jobs',     (select count(*) from public.jobs where approval_status = 'pending'),
+    'pending_accounts', (select count(*) from public.profiles where verification_status = 'pending'),
+    'total_users',      (select count(*) from public.profiles),
+    'workers',          (select count(*) from public.profiles where role = 'worker'),
+    'employers',        (select count(*) from public.profiles where role = 'employer'),
+    'verified_users',   (select count(*) from public.profiles where verification_status = 'verified'),
+    'total_jobs',       (select count(*) from public.jobs),
+    'live_jobs',        (select count(*) from public.jobs where status = 'active' and approval_status = 'approved'),
+    'applications',     (select count(*) from public.applications),
+    'hired',            (select count(*) from public.applications where status = 'accepted')
+  );
+end $$;
+grant execute on function public.admin_stats() to authenticated;
+
+-- Admins can read the private ID details (the web console shows them to the reviewer)
+drop policy if exists "private: admin read" on public.profile_private;
+create policy "private: admin read" on public.profile_private for select to authenticated using (public.is_admin());
+
 -- ---------- ROW LEVEL SECURITY ---------------------------------------------
 alter table public.profiles enable row level security;
 alter table public.jobs enable row level security;
@@ -594,7 +783,8 @@ drop policy if exists "jobs: employer inserts own" on public.jobs;
 drop policy if exists "jobs: employer updates own" on public.jobs;
 drop policy if exists "jobs: employer deletes own" on public.jobs;
 create policy "jobs: read active, own, or applied" on public.jobs for select
-  using (status = 'active' or employer_id = auth.uid() or public.i_applied_to(id));
+  using ((status = 'active' and approval_status = 'approved')
+         or employer_id = auth.uid() or public.i_applied_to(id) or public.is_admin());
 create policy "jobs: employer inserts own" on public.jobs for insert to authenticated
   with check (employer_id = auth.uid());
 create policy "jobs: employer updates own" on public.jobs for update to authenticated
@@ -611,7 +801,7 @@ create policy "applications: worker applies" on public.applications for insert t
   with check (
     worker_id = auth.uid()
     and exists (select 1 from public.jobs j
-                where j.id = job_id and j.status = 'active' and j.employer_id <> auth.uid())
+                where j.id = job_id and j.status = 'active' and j.approval_status = 'approved' and j.employer_id <> auth.uid())
   );
 create policy "applications: worker or job owner reads" on public.applications for select to authenticated
   using (worker_id = auth.uid()
@@ -691,6 +881,7 @@ drop policy if exists "avatars: public read" on storage.objects;
 drop policy if exists "avatars: upload to own folder" on storage.objects;
 drop policy if exists "avatars: delete own" on storage.objects;
 drop policy if exists "verification-docs: read own" on storage.objects;
+drop policy if exists "verification-docs: admin read" on storage.objects;
 drop policy if exists "verification-docs: upload own" on storage.objects;
 drop policy if exists "verification-docs: update own" on storage.objects;
 drop policy if exists "verification-docs: delete own" on storage.objects;
@@ -712,6 +903,8 @@ create policy "avatars: delete own" on storage.objects for delete to authenticat
 -- NIC photos and selfies: private bucket, each user can only see / upload files in their own folder
 create policy "verification-docs: read own" on storage.objects for select to authenticated
   using (bucket_id = 'verification-docs' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "verification-docs: admin read" on storage.objects for select to authenticated
+  using (bucket_id = 'verification-docs' and public.is_admin());
 create policy "verification-docs: upload own" on storage.objects for insert to authenticated
   with check (bucket_id = 'verification-docs' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "verification-docs: update own" on storage.objects for update to authenticated

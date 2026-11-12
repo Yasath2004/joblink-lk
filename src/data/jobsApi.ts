@@ -56,6 +56,8 @@ export function rowToJob(r: any): Job {
     rawEndTime: r.end_time ? String(r.end_time).slice(0, 5) : undefined,
     lat: r.lat ?? null,
     lng: r.lng ?? null,
+    approvalStatus: (r.approval_status ?? "approved") as "pending" | "approved" | "rejected",
+    rejectionReason: r.rejection_reason ?? undefined,
     employer: emp
       ? {
           name: emp.business_name || emp.full_name || "Employer",
@@ -78,6 +80,7 @@ export async function fetchJobs(): Promise<Job[]> {
     .from("jobs")
     .select(JOB_SELECT)
     .eq("status", "active")
+    .eq("approval_status", "approved")
     .order("urgent", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(200);
