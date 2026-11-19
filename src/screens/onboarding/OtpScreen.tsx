@@ -22,7 +22,7 @@ const RESEND_SECONDS = 60;
 export default function OtpScreen({ navigation, route }: any) {
   const { phone, mode, role, name } = route.params as {
     phone: string;
-    mode: "login" | "register";
+    mode: "login" | "register" | "reset";
     role?: Role;
     name?: string;
   };
@@ -74,11 +74,17 @@ export default function OtpScreen({ navigation, route }: any) {
     }
     setLoading(false);
 
-    // clear the history so Back never returns to the OTP screen
-    const go = (routeName: string) => navigation.reset({ index: 0, routes: [{ name: routeName }] });
-    if (finalRole === "worker") go(isNew ? "ProfileSetup" : "WorkerTabs");
-    else if (finalRole === "employer") go("EmployerTabs");
-    else go("RoleSelect"); // logged in, but no profile yet
+    // Where the user should end up
+    const dest =
+      finalRole === "worker" ? (isNew ? "ProfileSetup" : "WorkerTabs") : finalRole === "employer" ? "EmployerTabs" : "RoleSelect";
+
+    // OTP is only for the first login (or a password reset): ask for a password now, so next time no OTP is needed.
+    // Clear the history so Back never returns to the OTP screen.
+    if (res.needsPassword || mode === "reset") {
+      navigation.reset({ index: 0, routes: [{ name: "SetPassword", params: { next: dest } }] });
+    } else {
+      navigation.reset({ index: 0, routes: [{ name: dest }] });
+    }
   };
 
   const resend = async () => {
@@ -99,7 +105,7 @@ export default function OtpScreen({ navigation, route }: any) {
   return (
     <LinearGradient colors={[colors.bgDark, colors.bgDarker]} style={{ flex: 1 }}>
       <StatusBar barStyle="light-content" />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={20} color="#fff" />

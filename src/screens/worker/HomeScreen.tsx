@@ -225,7 +225,7 @@ export default function HomeScreen({ navigation }: any) {
       {urgentList.length > 0 && (
         <View style={{ marginBottom: spacing.md }}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>🔥 Urgent now</Text>
+            <Text style={styles.sectionTitle}>Urgent now</Text>
             <Text style={styles.sectionCount}>{urgentList.length}</Text>
           </View>
           <FlatList
@@ -269,7 +269,6 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.greeting}>{greeting}</Text>
           <View style={styles.nameRow}>
             <Text style={styles.name}>{myName.split(" ")[0] || "there"}</Text>
-            <Text style={{ fontSize: 16 }}> 👋</Text>
           </View>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate("Notifications")} style={styles.bell}>

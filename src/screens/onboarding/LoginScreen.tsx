@@ -15,40 +15,64 @@ import { colors, radius, spacing } from "../../theme/theme";
 import Input from "../../components/Input";
 import Button from "../../components/Button";
 import { useLanguage } from "../../i18n/LanguageContext";
-import { isLkMobile, sendOtp } from "../../lib/auth";
+import { isLkMobile, loginWithPassword, sendOtp } from "../../lib/auth";
 
 export default function LoginScreen({ navigation }: any) {
   const { t } = useLanguage();
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSend = async () => {
+  // Normal login: phone + password (no SMS).
+  const handleLogin = async () => {
+    if (!isLkMobile(phone)) {
+      setError(t("invalid_phone"));
+      return;
+    }
+    if (!password) {
+      setError("Enter your password");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    const res = await loginWithPassword(phone, password);
+    setLoading(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    const go = res.role === "worker" ? "WorkerTabs" : res.role === "employer" ? "EmployerTabs" : "RoleSelect";
+    navigation.reset({ index: 0, routes: [{ name: go }] });
+  };
+
+  // First login on an old account, or forgotten password: confirm the number with an OTP, then set a new password.
+  const handleOtp = async () => {
     if (!isLkMobile(phone)) {
       setError(t("invalid_phone"));
       return;
     }
     setError("");
     setLoading(true);
-    const res = await sendOtp(phone, "login");
+    const res = await sendOtp(phone, "reset");
     setLoading(false);
     if (res.error) {
       setError(res.error);
       return;
     }
-    navigation.navigate("Otp", { phone, mode: "login" });
+    navigation.navigate("Otp", { phone, mode: "reset" });
   };
 
   return (
     <LinearGradient colors={[colors.bgDark, colors.bgDarker]} style={{ flex: 1 }}>
       <StatusBar barStyle="light-content" />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.logoWrap}>
             <Ionicons name="briefcase" size={28} color={colors.bgDark} />
           </View>
           <Text style={styles.title}>{t("welcome_back")}</Text>
-          <Text style={styles.subtitle}>Enter your mobile number and we'll text you a 6-digit code.</Text>
+          <Text style={styles.subtitle}>Log in with your mobile number and password.</Text>
 
           <View style={styles.card}>
             <Input
@@ -63,14 +87,25 @@ export default function LoginScreen({ navigation }: any) {
               }}
               maxLength={12}
             />
+            <Input
+              label="Password"
+              icon="lock-closed-outline"
+              placeholder="Your password"
+              secure
+              autoCapitalize="none"
+              value={password}
+              onChangeText={(v) => {
+                setPassword(v);
+                if (error) setError("");
+              }}
+            />
             {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-            <Button label="Send OTP" icon="arrow-forward" loading={loading} onPress={handleSend} />
+            <Button label="Log in" icon="arrow-forward" loading={loading} onPress={handleLogin} />
 
-            <View style={styles.secure}>
-              <Ionicons name="shield-checkmark-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.secureText}>No password needed. Standard SMS rates may apply.</Text>
-            </View>
+            <TouchableOpacity onPress={handleOtp} style={styles.secure} disabled={loading}>
+              <Text style={styles.otpLink}>First time here, or forgot password? Log in with an OTP code</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.signupRow}>
@@ -113,7 +148,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   secure: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: spacing.md },
-  secureText: { fontSize: 11, color: colors.textMuted, marginLeft: 6 },
+  otpLink: { fontSize: 12, fontWeight: "700", color: colors.primaryDark, textAlign: "center" },
   signupRow: { flexDirection: "row", marginTop: spacing.xl },
   signupText: { color: colors.textOnDarkMuted, fontSize: 13 },
   signupLink: { color: "#fff", fontWeight: "700", fontSize: 13 },

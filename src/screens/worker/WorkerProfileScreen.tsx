@@ -13,6 +13,7 @@ import {
   ReviewItem,
 } from "../../data/profileApi";
 import { logoutAndReset } from "../../lib/auth";
+import { confirmSwitchAccount } from "../../lib/switchAccount";
 import { colorFor } from "../../data/util";
 import Chip from "../../components/Chip";
 import Avatar from "../../components/Avatar";
@@ -124,8 +125,10 @@ export default function WorkerProfileScreen({ navigation }: any) {
               hintColor={verifyHint(profile?.verification).color}
               onPress={() => navigation.navigate("VerificationHub")}
             />
+            <MenuRow icon="heart-outline" label="Saved jobs" onPress={() => navigation.navigate("SavedJobs")} />
             <MenuRow icon="create-outline" label="Edit profile" onPress={() => navigation.navigate("CompleteProfile", { step: 0 })} />
             <MenuRow icon="settings-outline" label="Settings" onPress={() => navigation.navigate("Settings")} />
+            <MenuRow icon="briefcase-outline" label="Switch to Employer account" onPress={() => confirmSwitchAccount(navigation, "employer")} />
             <MenuRow icon="log-out-outline" label="Log out" danger last onPress={() => logoutAndReset(navigation)} />
           </MenuCard>
         </Section>

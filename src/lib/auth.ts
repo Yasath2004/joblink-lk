@@ -54,7 +54,7 @@ function friendlyOtpError(msg: string): string {
 }
 
 // Step 1: send a 6-digit code by SMS. mode "login" only works for existing accounts.
-export async function sendOtp(phone: string, mode: "login" | "register"): Promise<{ error?: string }> {
+export async function sendOtp(phone: string, mode: "login" | "register" | "reset"): Promise<{ error?: string }> {
   if (!isSupabaseConfigured) return { error: NOT_CONFIGURED };
   const e164 = toE164(phone);
   if (!e164) return { error: "Enter a valid mobile number (07X XXX XXXX)" };
@@ -66,7 +66,10 @@ export async function sendOtp(phone: string, mode: "login" | "register"): Promis
 }
 
 // Step 2: check the code. On success the user is logged in; role is null for a brand new account.
-export async function verifyOtp(phone: string, code: string): Promise<{ error?: string; role?: Role | null }> {
+export async function verifyOtp(
+  phone: string,
+  code: string
+): Promise<{ error?: string; role?: Role | null; needsPassword?: boolean }> {
   const e164 = toE164(phone);
   if (!e164) return { error: "Enter a valid mobile number (07X XXX XXXX)" };
   const { data, error } = await supabase.auth.verifyOtp({ phone: e164, token: code.trim(), type: "sms" });
@@ -74,7 +77,55 @@ export async function verifyOtp(phone: string, code: string): Promise<{ error?: 
     const msg = error?.message ?? "";
     return { error: /expired|invalid/i.test(msg) || !msg ? "That code is wrong or has expired. Please try again." : msg };
   }
+  // OTP is only needed the first time: after it, the user creates a password and logs in with that.
+  const needsPassword = !data.user?.user_metadata?.has_password;
+  return { role: await getMyRole(), needsPassword };
+}
+
+// ---------- password login (every login after the first OTP) ----------
+// Called once, right after the first OTP. Later logins use loginWithPassword() - no SMS.
+export async function setPassword(password: string): Promise<{ error?: string }> {
+  if (password.length < 6) return { error: "Password must be at least 6 characters." };
+  const { error } = await supabase.auth.updateUser({ password, data: { has_password: true } });
+  return error ? { error: error.message } : {};
+}
+
+export async function loginWithPassword(
+  phone: string,
+  password: string
+): Promise<{ error?: string; role?: Role | null; noPassword?: boolean }> {
+  if (!isSupabaseConfigured) return { error: NOT_CONFIGURED };
+  const e164 = toE164(phone);
+  if (!e164) return { error: "Enter a valid mobile number (07X XXX XXXX)" };
+  const { data, error } = await supabase.auth.signInWithPassword({ phone: e164, password });
+  if (error || !data.session) {
+    const msg = error?.message ?? "";
+    if (/rate limit|too many/i.test(msg)) return { error: "Too many attempts. Please wait a minute and try again." };
+    // wrong password, or an older account that never set one -> let the user use the OTP route
+    return { error: "Wrong number or password.", noPassword: true };
+  }
   return { role: await getMyRole() };
+}
+
+// ---------- switch between Worker and Employer (same account) ----------
+// One phone number = one account. The `role` on the profile is the mode the user is using right now.
+export async function switchRole(target: Role): Promise<{ error?: string; needsWorkerSetup?: boolean }> {
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return { error: "Please log in first" };
+  const { error } = await supabase.from("profiles").update({ role: target }).eq("id", data.user.id);
+  if (error) return { error: error.message };
+  if (target === "worker") {
+    const { data: p } = await supabase.from("profiles").select("skills").eq("id", data.user.id).maybeSingle();
+    return { needsWorkerSetup: !(p?.skills?.length > 0) };
+  }
+  return {};
+}
+
+// Clear the navigation history and open another screen (works from inside the tabs).
+export function resetRoot(navigation: any, routeName: string) {
+  let nav = navigation;
+  while (nav.getParent?.()) nav = nav.getParent();
+  nav.reset({ index: 0, routes: [{ name: routeName }] });
 }
 
 // First login of a new account: create its profile (name + role)

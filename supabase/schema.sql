@@ -400,7 +400,7 @@ begin
   if new.verification_status is distinct from old.verification_status then
     if new.verification_status = 'verified' then
       insert into public.notifications(user_id, type, title, body)
-      values (new.id, 'info', 'You are verified ✓', 'Your account is verified. A verified badge now shows on your profile.');
+      values (new.id, 'info', 'You are verified', 'Your account is verified. A verified badge now shows on your profile.');
     elsif new.verification_status = 'rejected' then
       select review_note into note from public.profile_private where user_id = new.id;
       insert into public.notifications(user_id, type, title, body)
@@ -653,7 +653,7 @@ begin
   if new.approval_status is distinct from old.approval_status then
     if new.approval_status = 'approved' then
       insert into public.notifications(user_id, type, title, body)
-      values (new.employer_id, 'info', 'Job ad approved ✓', '"' || new.title || '" is now live. Workers can apply.');
+      values (new.employer_id, 'info', 'Job ad approved', '"' || new.title || '" is now live. Workers can apply.');
     elsif new.approval_status = 'rejected' then
       insert into public.notifications(user_id, type, title, body)
       values (new.employer_id, 'info', 'Job ad needs changes',
@@ -913,4 +913,25 @@ create policy "verification-docs: delete own" on storage.objects for delete to a
   using (bucket_id = 'verification-docs' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- refresh the API schema cache so new columns/tables are visible immediately
+notify pgrst, 'reload schema';
+
+-- ============================================================================
+-- SAVED JOBS (favourites): a worker taps the heart on a job to save it
+-- ============================================================================
+create table if not exists public.favorites (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  job_id uuid not null references public.jobs(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, job_id)
+);
+create index if not exists favorites_user_idx on public.favorites(user_id, created_at desc);
+alter table public.favorites enable row level security;
+drop policy if exists "favorites: read own" on public.favorites;
+drop policy if exists "favorites: insert own" on public.favorites;
+drop policy if exists "favorites: delete own" on public.favorites;
+create policy "favorites: read own" on public.favorites for select to authenticated using (user_id = auth.uid());
+create policy "favorites: insert own" on public.favorites for insert to authenticated with check (user_id = auth.uid());
+create policy "favorites: delete own" on public.favorites for delete to authenticated using (user_id = auth.uid());
+grant select, insert, delete on public.favorites to authenticated;
+
 notify pgrst, 'reload schema';

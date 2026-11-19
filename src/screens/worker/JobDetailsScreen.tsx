@@ -17,7 +17,7 @@ import Chip from "../../components/Chip";
 import Button from "../../components/Button";
 import Avatar from "../../components/Avatar";
 import VerifiedBadge from "../../components/VerifiedBadge";
-import { AppStatus, applyToJob, getApplicationStatus, getMyBookingConflict } from "../../data/jobsApi";
+import { AppStatus, applyToJob, getApplicationStatus, getMyBookingConflict, isJobFavorite, setJobFavorite } from "../../data/jobsApi";
 import { fetchUserRating } from "../../data/profileApi";
 import { colorFor } from "../../data/util";
 
@@ -27,6 +27,7 @@ export default function JobDetailsScreen({ route, navigation }: any) {
   const [applying, setApplying] = useState(false);
   const [conflict, setConflict] = useState<string | null>(null);
   const [empRating, setEmpRating] = useState({ rating: 0, reviews: 0 });
+  const [fav, setFav] = useState(false);
 
   useEffect(() => {
     getApplicationStatus(job.id).then((st) => {
@@ -35,7 +36,19 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       if (!st) getMyBookingConflict(job.id).then(setConflict);
     });
     if (job.employerId) fetchUserRating(job.employerId).then(setEmpRating);
+    isJobFavorite(job.id).then(setFav);
   }, [job.id]);
+
+  const toggleFav = async () => {
+    const next = !fav;
+    setFav(next); // show the change straight away
+    try {
+      await setJobFavorite(job.id, next);
+    } catch (e: any) {
+      setFav(!next);
+      Alert.alert("Could not save", e.message);
+    }
+  };
 
   const apply = async () => {
     setApplying(true);
@@ -56,8 +69,8 @@ export default function JobDetailsScreen({ route, navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={22} color={colors.textDark} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Ionicons name="heart-outline" size={20} color={colors.textDark} />
+        <TouchableOpacity style={styles.iconBtn} onPress={toggleFav}>
+          <Ionicons name={fav ? "heart" : "heart-outline"} size={20} color={fav ? colors.urgent : colors.textDark} />
         </TouchableOpacity>
       </View>
 
@@ -172,11 +185,11 @@ export default function JobDetailsScreen({ route, navigation }: any) {
         <Button
           label={
             appStatus === "accepted"
-              ? "Accepted ✓"
+              ? "Accepted"
               : appStatus === "rejected"
               ? "Declined"
               : appStatus === "pending"
-              ? "Applied ✓"
+              ? "Applied"
               : conflict
               ? "Time clash"
               : "Apply Now"

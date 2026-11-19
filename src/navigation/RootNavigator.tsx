@@ -7,6 +7,7 @@ import LoginScreen from "../screens/onboarding/LoginScreen";
 import RoleSelectScreen from "../screens/onboarding/RoleSelectScreen";
 import RegisterScreen from "../screens/onboarding/RegisterScreen";
 import OtpScreen from "../screens/onboarding/OtpScreen";
+import SetPasswordScreen from "../screens/onboarding/SetPasswordScreen";
 import PushSetup from "../components/PushSetup";
 import VerificationHubScreen from "../screens/shared/VerificationHubScreen";
 import CompleteProfileScreen from "../screens/shared/CompleteProfileScreen";
@@ -17,6 +18,7 @@ import WorkerTabs from "./WorkerTabs";
 import EmployerTabs from "./EmployerTabs";
 
 import JobDetailsScreen from "../screens/worker/JobDetailsScreen";
+import SavedJobsScreen from "../screens/worker/SavedJobsScreen";
 import ChatScreen from "../screens/shared/ChatScreen";
 import NotificationsScreen from "../screens/shared/NotificationsScreen";
 import SettingsScreen from "../screens/shared/SettingsScreen";
@@ -39,6 +41,7 @@ export default function RootNavigator() {
         <Stack.Screen name="RoleSelect" component={RoleSelectScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="Otp" component={OtpScreen} />
+        <Stack.Screen name="SetPassword" component={SetPasswordScreen} />
         <Stack.Screen name="VerificationHub" component={VerificationHubScreen} />
         <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} />
         <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
@@ -50,6 +53,7 @@ export default function RootNavigator() {
 
         {/* Shared / detail screens reachable from either flow */}
         <Stack.Screen name="JobDetails" component={JobDetailsScreen} />
+        <Stack.Screen name="SavedJobs" component={SavedJobsScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />

@@ -8,6 +8,7 @@ import { PostedJob } from "../../data/mockData";
 import { fetchMyJobs } from "../../data/jobsApi";
 import { fetchMyProfile, fetchStats, fetchUserRating, Profile, ProfileStats } from "../../data/profileApi";
 import { logoutAndReset } from "../../lib/auth";
+import { confirmSwitchAccount } from "../../lib/switchAccount";
 import { MenuCard, MenuRow, ProfileHero, Section, StatsStrip, verifyHint } from "../../components/ProfileParts";
 
 const PILL: Record<string, { bg: string; color: string; label: string }> = {
@@ -111,6 +112,7 @@ export default function EmployerProfileScreen({ navigation }: any) {
             />
             <MenuRow icon="create-outline" label="Edit business profile" onPress={() => navigation.navigate("CompleteProfile", { step: 0 })} />
             <MenuRow icon="settings-outline" label="Settings" onPress={() => navigation.navigate("Settings")} />
+            <MenuRow icon="hammer-outline" label="Switch to Worker account" onPress={() => confirmSwitchAccount(navigation, "worker")} />
             <MenuRow icon="log-out-outline" label="Log out" danger last onPress={() => logoutAndReset(navigation)} />
           </MenuCard>
         </Section>

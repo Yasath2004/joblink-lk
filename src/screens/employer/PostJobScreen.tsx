@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Image, Platform, Switch, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Platform, Switch, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "../../components/SafeScreen";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimeField from "../../components/DateTimeField";
@@ -148,7 +148,8 @@ export default function PostJobScreen({ navigation, route }: any) {
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 60 }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}>
+      <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
         <Text style={styles.subtitle}>Fill in the details to find the right worker</Text>
 
         <Input
@@ -350,6 +351,7 @@ export default function PostJobScreen({ navigation, route }: any) {
           onPress={submit}
         />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

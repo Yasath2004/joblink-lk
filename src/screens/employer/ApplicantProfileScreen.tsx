@@ -165,7 +165,7 @@ export default function ApplicantProfileScreen({ route, navigation }: any) {
               ]}
             >
               <Text style={{ fontWeight: "800", color: status === "accepted" ? colors.success : colors.urgent }}>
-                {status === "accepted" ? "Accepted ✓" : "Declined"}
+                {status === "accepted" ? "Accepted" : "Declined"}
               </Text>
             </View>
           </View>

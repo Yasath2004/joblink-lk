@@ -202,12 +202,12 @@ export default function ApplicantsScreen({ route, navigation }: any) {
                       fontSize: 12,
                     }}
                   >
-                    {item.status === "accepted" ? "Accepted ✓" : "Declined"}
+                    {item.status === "accepted" ? "Accepted" : "Declined"}
                   </Text>
                 </View>
                 {item.status === "accepted" && (
                   <TouchableOpacity onPress={() => setRateFor(item)} style={{ marginLeft: spacing.md }}>
-                    <Text style={{ color: colors.primaryDark, fontWeight: "700", fontSize: 12 }}>★ Rate worker</Text>
+                    <Text style={{ color: colors.primaryDark, fontWeight: "700", fontSize: 12 }}>Rate worker</Text>
                   </TouchableOpacity>
                 )}
               </View>

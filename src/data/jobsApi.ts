@@ -369,3 +369,38 @@ export async function getMyBookingConflict(jobId: string): Promise<string | null
   const { data } = await supabase.rpc("my_booking_conflict", { p_job: jobId });
   return typeof data === "string" ? data : null;
 }
+
+// ---------- saved jobs (favourites) -----------------------------------------
+export async function isJobFavorite(jobId: string): Promise<boolean> {
+  const uid = await currentUserId();
+  if (!uid) return false;
+  const { data } = await supabase.from("favorites").select("job_id").eq("user_id", uid).eq("job_id", jobId).maybeSingle();
+  return !!data;
+}
+
+export async function setJobFavorite(jobId: string, on: boolean) {
+  const uid = await currentUserId();
+  if (!uid) throw new Error("Please log in first.");
+  if (on) {
+    const { error } = await supabase.from("favorites").upsert({ user_id: uid, job_id: jobId }, { onConflict: "user_id,job_id" });
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase.from("favorites").delete().eq("user_id", uid).eq("job_id", jobId);
+    if (error) throw new Error(error.message);
+  }
+}
+
+export async function fetchFavoriteJobs(): Promise<Job[]> {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase
+    .from("favorites")
+    .select(`created_at, job:jobs!favorites_job_id_fkey(${JOB_SELECT})`)
+    .eq("user_id", uid)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.warn("fetchFavoriteJobs:", error.message);
+    return [];
+  }
+  return (data ?? []).filter((f: any) => f.job).map((f: any) => rowToJob(f.job));
+}

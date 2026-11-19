@@ -124,7 +124,7 @@ export default function VerificationHubScreen({ navigation }: any) {
         </View>
 
         <Text style={styles.privacy}>
-          🔒 Your email, NIC number and photos are private. Only our verification team can see them. They are never shown to
+          Your email, NIC number and photos are private. Only our verification team can see them. They are never shown to
           other users.
         </Text>
 

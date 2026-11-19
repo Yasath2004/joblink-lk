@@ -279,7 +279,7 @@ export default function CompleteProfileScreen({ route, navigation }: any) {
         ))}
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
           {!!banner && (
             <View style={styles.banner}>
@@ -409,7 +409,7 @@ export default function CompleteProfileScreen({ route, navigation }: any) {
               {!!errors.nic && <Text style={styles.err}>{errors.nic}</Text>}
               {!errors.nic && !!nicInfo && nicInfo.age >= 18 && (
                 <Text style={styles.ok}>
-                  ✓ {nicInfo.gender === "male" ? "Male" : "Female"} · born{" "}
+                  {nicInfo.gender === "male" ? "Male" : "Female"} · born{" "}
                   {new Date(nicInfo.dob).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} (age{" "}
                   {nicInfo.age})
                 </Text>
