@@ -652,19 +652,9 @@
     state.poll = setInterval(refreshBadges, 60000);
   }
 
-  // Accept sloppy input: quotes, spaces, a trailing "/" or a pasted path like "/rest/v1/" (that caused
-  // "Invalid path specified in request URL"). Only "https://PROJECT.supabase.co" is kept.
-  function cleanUrl(raw) {
-    const v = String(raw || "").trim().replace(/^["']|["']$/g, "");
-    try { return new URL(v).origin; } catch (e) { return v; }
-  }
-  const cleanKey = (raw) => String(raw || "").trim().replace(/^["']|["']$/g, "");
-
   async function boot() {
-    const url = cleanUrl(cfg.SUPABASE_URL);
-    const key = cleanKey(cfg.SUPABASE_ANON_KEY);
-    if (!url || !key || /YOUR-/.test(url + key)) { show("setup"); return; }
-    sb = window.supabase.createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true } });
+    if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || /YOUR-/.test(cfg.SUPABASE_URL + cfg.SUPABASE_ANON_KEY)) { show("setup"); return; }
+    sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
     $("#login-form").addEventListener("submit", async (e) => {
       e.preventDefault();

@@ -15,7 +15,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "lk.joblink.app",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "JobLink LK needs access to your photos so you can add a profile picture."
+        "NSPhotoLibraryUsageDescription": "JobLink LK needs access to your photos so you can add a profile picture.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "plugins": [

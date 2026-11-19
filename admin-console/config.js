@@ -4,3 +4,4 @@ window.JOBLINK_CONFIG = {
   SUPABASE_URL: "https://fipznlstguhtpnbzrxro.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_v1uQRyTIvbfTkU-robRjxA_ll-hTRac",
 };
+
