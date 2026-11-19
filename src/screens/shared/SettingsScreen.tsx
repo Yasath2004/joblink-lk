@@ -76,7 +76,11 @@ export default function SettingsScreen({ navigation }: any) {
           ))}
         </View>
 
+<<<<<<< HEAD
         <Text style={styles.version}>JobLink LK v1.0.0{"\n"}Made in Sri Lanka</Text>
+=======
+        <Text style={styles.version}>JobLink LK v1.0.0{"\n"}Made with CODE CARFT</Text>
+>>>>>>> d9d9999942ade0a2cca18bc528833c0febadc2a7
       </ScrollView>
     </SafeAreaView>
   );
