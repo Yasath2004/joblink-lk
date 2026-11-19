@@ -269,7 +269,7 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.greeting}>{greeting}</Text>
           <View style={styles.nameRow}>
             <Text style={styles.name}>{myName.split(" ")[0] || "there"}</Text>
-            <Text style={{ fontSize: 16 }}> 👋</Text>
+            <Text style={{ fontSize: 16 }}></Text>
           </View>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate("Notifications")} style={styles.bell}>
