@@ -237,3 +237,4 @@ const styles = StyleSheet.create({
   },
   statusBox: { flex: 1, marginLeft: spacing.sm, height: 50, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
 });
+  
