@@ -225,7 +225,7 @@ export default function HomeScreen({ navigation }: any) {
       {urgentList.length > 0 && (
         <View style={{ marginBottom: spacing.md }}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>🔥 Urgent now</Text>
+            <Text style={styles.sectionTitle}> Urgent now</Text>
             <Text style={styles.sectionCount}>{urgentList.length}</Text>
           </View>
           <FlatList
